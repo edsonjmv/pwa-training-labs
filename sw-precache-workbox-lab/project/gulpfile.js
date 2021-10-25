@@ -14,54 +14,59 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-const gulp = require('gulp');
-const browserSync = require('browser-sync');
-const del = require('del');
-const swPrecache = require('sw-precache');
+const gulp = require("gulp");
+const browserSync = require("browser-sync");
+const del = require("del");
+// const swPrecache = require('sw-precache');
+const workboxBuild = require("workbox-build");
 
 // Clean "build" directory
 const clean = () => {
-  return del(['build/*'], {dot: true});
+  return del(["build/*"], { dot: true });
 };
-gulp.task('clean', clean);
+gulp.task("clean", clean);
 
 // Copy "app" directory to "build" directory
 const copy = () => {
-  return gulp.src(['app/**/*']).pipe(gulp.dest('build'));
+  return gulp.src(["app/**/*"]).pipe(gulp.dest("build"));
 };
-gulp.task('copy', copy);
-
+gulp.task("copy", copy);
 
 // Generate a service worker with sw-precache
 const serviceWorker = () => {
-  return swPrecache.write('build/sw.js', {
-    staticFileGlobs: [
-      'build/index.html',
-      'build/styles/main.css',
-    ],
-    importScripts: [
-      'sw-toolbox.js',
-      'js/toolbox-script.js'
-    ],
-    stripPrefix: 'build'
-  });
+  return workboxBuild
+    .injectManifest({
+      swSrc: "app/sw.js",
+      swDest: "build/sw.js",
+      globDirectory: "build",
+      globPatterns: ["index.html", "styles/main.css"]
+    })
+    .then((resources) => {
+      console.log(
+        `Injected ${resources.count} resources for precaching, ` +
+          `totaling ${resources.size} bytes.`
+      );
+    })
+    .catch((err) => {
+      console.log("[ERROR] This happened: " + err);
+    });
 };
-gulp.task('service-worker', serviceWorker);
+gulp.task("service-worker", serviceWorker);
 
 // This is the app's build process
-const build = gulp.series('clean', 'copy', 'service-worker');
-gulp.task('build', build);
+const build = gulp.series("clean", "copy", "service-worker");
+gulp.task("build", build);
 
 // Build the app, run a local dev server, and rebuild on "app" file changes
 const browserSyncOptions = {
-  server: 'build',
+  server: "build",
   port: 8002
 };
 const serve = gulp.series(build, () => {
   browserSync.init(browserSyncOptions);
-  return gulp.watch('app/**/*', build).on('change', browserSync.reload);
+  return gulp.watch("app/**/*", build).on("change", browserSync.reload);
 });
-gulp.task('serve', serve);
+gulp.task("serve", serve);
 
 // Set the default task to "build"
-gulp.task('default', build);
+gulp.task("default", build);
